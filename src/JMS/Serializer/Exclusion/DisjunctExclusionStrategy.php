@@ -36,6 +36,11 @@ class DisjunctExclusionStrategy implements ExclusionStrategyInterface
     /** @var \PhpCollection\SequenceInterface */
     private $delegates;
 
+    private $cache = array(
+        'classes' => array(),
+        'props' => array(),
+    );
+
     /**
      * @param ExclusionStrategyInterface[]|SequenceInterface $delegates
      */
@@ -62,14 +67,22 @@ class DisjunctExclusionStrategy implements ExclusionStrategyInterface
      */
     public function shouldSkipClass(ClassMetadata $metadata, Context $context)
     {
+        if (isset($this->cache['classes'][$metadata->name])) {
+            return $this->cache['classes'][$metadata->name];
+        }
+
+        $result = false;
         foreach ($this->delegates as $delegate) {
             /** @var $delegate ExclusionStrategyInterface */
             if ($delegate->shouldSkipClass($metadata, $context)) {
-                return true;
+                $result = true;
+                break;
             }
         }
 
-        return false;
+        $this->cache['classes'][$metadata->name] = $result;
+
+        return $result;
     }
 
     /**
@@ -81,13 +94,22 @@ class DisjunctExclusionStrategy implements ExclusionStrategyInterface
      */
     public function shouldSkipProperty(PropertyMetadata $property, Context $context)
     {
+        $key = $property->class . ':' . $property->name;
+        if (isset($this->cache['props'][$key])) {
+            return $this->cache['props'][$key];
+        }
+
+        $result = false;
         foreach ($this->delegates as $delegate) {
             /** @var $delegate ExclusionStrategyInterface */
             if ($delegate->shouldSkipProperty($property, $context)) {
-                return true;
+                $result = true;
+                break;
             }
         }
 
-        return false;
+        $this->cache['props'][$key] = $result;
+
+        return $result;
     }
 }
